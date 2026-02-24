@@ -1,0 +1,22 @@
+[project]
+name = "pdf-porter"
+version = "0.1.0"
+description = "MCP server for layout-aware PDF to Markdown conversion via Docling"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Ben Mazzotta" }]
+requires-python = ">=3.11"
+dependencies = ["mcp[cli]", "docling"]
+
+[dependency-groups]
+dev = ["pytest", "reportlab"]
+
+[project.scripts]
+pdf-porter = "pdf_porter.server:main"
+
+[project.urls]
+Homepage = "https://github.com/benmazzotta/pdf-porter"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
