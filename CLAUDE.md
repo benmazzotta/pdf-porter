@@ -74,6 +74,17 @@ pdf_to_markdown(path: str, save_output: bool = False) -> str
 - Do not add dependencies beyond `mcp`, `docling`, `pytest`, and `reportlab` (dev).
 - README must include a working `claude_desktop_config.json` snippet.
 
+## Claude Desktop integration
+
+### Custom instruction (add to Claude Desktop → Settings → Custom Instructions)
+
+> When I share a path to a PDF file or ask you to read a PDF, call the `pdf_to_markdown` tool before doing anything else. Pass the file's local path as the `path` argument. Use the returned markdown as the document content for your analysis. Only fall back to native PDF attachment handling if the tool returns an `Error:` response or is unavailable.
+
+This must be paired with the MCP server registered in `claude_desktop_config.json` (see README). Restart Claude Desktop after adding the server config.
+
+### Why this is preferred over native PDF ingestion
+Native Claude Desktop PDF handling processes each page as a vision input (~800–1,600 image tokens/page). A 10-page PDF costs ~10,000–16,000 tokens before Claude reads a word. pdf-porter converts locally (zero API cost via Docling) and returns plain markdown — typically 3,000–8,000 text input tokens for the same document. Text tokens are cheaper than image tokens, and Docling preserves tables and multi-column layout that native ingestion scrambles, reducing follow-up turns.
+
 ## Known limitations (inform users)
 - First run downloads Docling model weights (~500MB); subsequent runs are fast.
 - OCR mode not enabled in v0.1 — scanned/image-only PDFs will return empty text.
