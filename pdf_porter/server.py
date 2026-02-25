@@ -25,11 +25,11 @@ def _get_converter() -> DocumentConverter:
 
 @mcp.tool()
 def pdf_to_markdown(
-    path: str = None,
-    pdf_base64: str = None,
+    path: str | None = None,
+    pdf_base64: str | None = None,
     save_output: bool = False,
-    output_dir: str = None,
-    filename: str = None,
+    output_dir: str | None = None,
+    filename: str | None = None,
 ) -> str:
     """Convert a PDF to Markdown using Docling's layout-aware converter.
 
