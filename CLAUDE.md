@@ -3,7 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project
-`pdf-porter`: a minimal MCP server exposing one tool — `pdf_to_markdown(path, save_output)` — for layout-aware PDF→Markdown conversion via Docling. Pitch: one tool, zero config, five minutes.
+`pdf-porter`: a minimal MCP server exposing one tool — `pdf_to_markdown` — for layout-aware PDF→Markdown conversion via Docling. Pitch: one tool, zero config, five minutes.
 
 **Note:** `docling-mcp` (the obvious name) is taken by IBM Research Zurich, the Docling authors themselves, at v1.3.2. This package is intentionally minimal — one tool, no config. The README should reference IBM's `docling-mcp` as the full-featured alternative: "if you want the full Docling toolset, see docling-mcp."
 
@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Structure
 ```
 pdf_porter/
-  __init__.py       # __version__ = "0.1.0"
+  __init__.py       # __version__ = "0.2.0"
   server.py         # FastMCP app, tool definitions, module-level converter singleton
 tests/
   test_server.py    # integration tests (no mocking)
@@ -61,16 +61,24 @@ Entry point: `pdf_porter.server:main` → calls `mcp.run()`. Also handles `if __
 
 ## Tool signature
 ```python
-pdf_to_markdown(path: str, save_output: bool = False) -> str
+pdf_to_markdown(
+    path: str = None,
+    pdf_base64: str = None,
+    save_output: bool = False,
+    output_dir: str = None,
+) -> str
 ```
-- Returns markdown string directly, or `"Saved to: {output_path}"` when `save_output=True`
-- Returns `"Error: ..."` on any failure (bad path, wrong extension, conversion error)
+- `path`: local filesystem path to a PDF (use when file exists on the server).
+- `pdf_base64`: base64-encoded PDF bytes (use when the file is an attachment, e.g. claude.ai uploads at `/mnt/user-data/uploads/` which the server cannot access).
+- `save_output=True`: write Markdown to a `.md` file and return `"Saved to: {path}"` instead of the content.
+- `output_dir`: directory for saved output (defaults to same dir as source in path mode, or a temp dir in base64 mode). Pass `/mnt/user-data/outputs/` to surface via `present_files`.
+- Returns `"Error: ..."` on any failure (bad path, wrong extension, missing args, conversion error).
 
 ## Rules
 - No global state beyond the converter singleton and the first-run flag — document both in server.py.
 - All errors surface as readable strings, never raw tracebacks to the LLM.
 - Tests are integration tests — do not mock `DocumentConverter`.
-- Tests must cover: simple PDF, two-column PDF, table PDF (asserts `|` present), bad path, non-PDF extension, `save_output=True`.
+- Tests must cover: simple PDF, two-column PDF, table PDF (asserts `|` present), bad path, non-PDF extension, `save_output=True`, base64 mode, base64+save_output, output_dir, neither-arg error.
 - Do not add dependencies beyond `mcp`, `docling`, `pytest`, and `reportlab` (dev).
 - README must include a working `claude_desktop_config.json` snippet.
 

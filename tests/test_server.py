@@ -1,4 +1,5 @@
 """Integration tests for pdf_to_markdown. Does NOT mock DocumentConverter."""
+import base64
 import shutil
 from pathlib import Path
 
@@ -50,3 +51,37 @@ def test_save_output(tmp_path):
     md_file = dest.with_suffix(".md")
     assert md_file.exists()
     assert md_file.stat().st_size > 0
+
+
+def test_base64_mode():
+    pdf_bytes = (FIXTURES / "simple.pdf").read_bytes()
+    b64 = base64.b64encode(pdf_bytes).decode()
+    result = pdf_to_markdown(pdf_base64=b64)
+    assert isinstance(result, str)
+    assert len(result) > 100
+    assert not result.startswith("Error:")
+
+
+def test_base64_save_output(tmp_path):
+    pdf_bytes = (FIXTURES / "simple.pdf").read_bytes()
+    b64 = base64.b64encode(pdf_bytes).decode()
+    result = pdf_to_markdown(pdf_base64=b64, save_output=True, output_dir=str(tmp_path))
+    assert result.startswith("Saved to:")
+    md_files = list(tmp_path.glob("*.md"))
+    assert len(md_files) == 1
+    assert md_files[0].stat().st_size > 0
+
+
+def test_output_dir(tmp_path):
+    result = pdf_to_markdown(
+        str(FIXTURES / "simple.pdf"), save_output=True, output_dir=str(tmp_path)
+    )
+    assert result.startswith("Saved to:")
+    md_file = tmp_path / "simple.md"
+    assert md_file.exists()
+    assert md_file.stat().st_size > 0
+
+
+def test_neither_arg_returns_error():
+    result = pdf_to_markdown()
+    assert result.startswith("Error:")
