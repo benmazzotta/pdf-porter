@@ -29,6 +29,7 @@ def pdf_to_markdown(
     pdf_base64: str = None,
     save_output: bool = False,
     output_dir: str = None,
+    filename: str = None,
 ) -> str:
     """Convert a PDF to Markdown using Docling's layout-aware converter.
 
@@ -38,16 +39,19 @@ def pdf_to_markdown(
         pdf_base64: Base64-encoded PDF bytes. Use this when the PDF arrives as
                     an attachment (e.g. claude.ai uploads where
                     /mnt/user-data/uploads/ is not accessible to the server).
-        save_output: If True, write Markdown to a .md file and return the path.
-                     If False (default), return Markdown content directly.
+        save_output: If True, write Markdown to a .md file and return the bare
+                     file path. If False (default), return Markdown content directly.
         output_dir: Directory to write output when save_output=True. Defaults to
                     the same directory as the source file (path mode) or a temp
                     directory (base64 mode). Pass /mnt/user-data/outputs/ to
                     surface the file via Claude Desktop's present_files tool.
+        filename: Original filename hint used when save_output=True in base64 mode.
+                  E.g. pass "quarterly_report.pdf" so the output is
+                  "quarterly_report.md" rather than "output.md". Ignored in path mode.
 
     Returns:
-        Markdown string, "Saved to: {path}" if save_output=True, or "Error: ..."
-        on failure.
+        Markdown string, the bare output file path if save_output=True, or
+        "Error: ..." on failure.
     """
     tmp_path = None
     try:
@@ -58,12 +62,20 @@ def pdf_to_markdown(
             tmp.close()
             tmp_path = Path(tmp.name)
             source = tmp_path
+            stem = Path(filename).stem if filename else "output"
         elif path is not None:
             source = Path(path)
             if not source.exists():
+                if "/mnt/user-data/uploads/" in path or path.startswith("/mnt/user-data/uploads"):
+                    return (
+                        f"Error: file not found: {path}. "
+                        "Paths under /mnt/user-data/uploads/ are not visible to this server. "
+                        "Pass the PDF content as the pdf_base64 argument instead (e.g. after reading the file on the client)."
+                    )
                 return f"Error: file not found: {path}"
             if source.suffix.lower() != ".pdf":
                 return f"Error: not a PDF file: {path}"
+            stem = source.stem
         else:
             return "Error: provide either path or pdf_base64"
 
@@ -77,9 +89,9 @@ def pdf_to_markdown(
                 out_dir.mkdir(parents=True, exist_ok=True)
             else:
                 out_dir = source.parent
-            output_path = out_dir / (source.stem + ".md")
+            output_path = out_dir / (stem + ".md")
             output_path.write_text(markdown, encoding="utf-8")
-            return f"Saved to: {output_path}"
+            return str(output_path)
 
         return markdown
 
@@ -92,6 +104,8 @@ def pdf_to_markdown(
 
 
 def main() -> None:
+    # Pre-load Docling models at startup so the first tool call isn't slow.
+    _get_converter()
     mcp.run()
 
 

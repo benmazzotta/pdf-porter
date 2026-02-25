@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Structure
 ```
 pdf_porter/
-  __init__.py       # __version__ = "0.2.0"
+  __init__.py       # __version__ = "0.2.1"
   server.py         # FastMCP app, tool definitions, module-level converter singleton
 tests/
   test_server.py    # integration tests (no mocking)
@@ -66,19 +66,21 @@ pdf_to_markdown(
     pdf_base64: str = None,
     save_output: bool = False,
     output_dir: str = None,
+    filename: str = None,
 ) -> str
 ```
 - `path`: local filesystem path to a PDF (use when file exists on the server).
 - `pdf_base64`: base64-encoded PDF bytes (use when the file is an attachment, e.g. claude.ai uploads at `/mnt/user-data/uploads/` which the server cannot access).
-- `save_output=True`: write Markdown to a `.md` file and return `"Saved to: {path}"` instead of the content.
+- `save_output=True`: write Markdown to a `.md` file and return the bare output file path instead of the content.
 - `output_dir`: directory for saved output (defaults to same dir as source in path mode, or a temp dir in base64 mode). Pass `/mnt/user-data/outputs/` to surface via `present_files`.
+- `filename`: original filename hint for base64 mode (e.g. `"quarterly_report.pdf"` → output is `"quarterly_report.md"`). Ignored in path mode.
 - Returns `"Error: ..."` on any failure (bad path, wrong extension, missing args, conversion error).
 
 ## Rules
 - No global state beyond the converter singleton and the first-run flag — document both in server.py.
 - All errors surface as readable strings, never raw tracebacks to the LLM.
 - Tests are integration tests — do not mock `DocumentConverter`.
-- Tests must cover: simple PDF, two-column PDF, table PDF (asserts `|` present), bad path, non-PDF extension, `save_output=True`, base64 mode, base64+save_output, output_dir, neither-arg error.
+- Tests must cover: simple PDF, two-column PDF, table PDF (asserts `|` present), bad path, non-PDF extension, `save_output=True`, base64 mode, base64+save_output, output_dir, neither-arg error, base64 filename hint, unwritable output dir.
 - Do not add dependencies beyond `mcp`, `docling`, `pytest`, and `reportlab` (dev).
 - README must include a working `claude_desktop_config.json` snippet.
 
@@ -86,7 +88,12 @@ pdf_to_markdown(
 
 ### Custom instruction (add to Claude Desktop → Settings → Custom Instructions)
 
-> When I share a path to a PDF file or ask you to read a PDF, call the `pdf_to_markdown` tool before doing anything else. Pass the file's local path as the `path` argument. Use the returned markdown as the document content for your analysis. Only fall back to native PDF attachment handling if the tool returns an `Error:` response or is unavailable.
+> When I share a PDF file or ask you to read a PDF:
+> 1. If the file exists on the server's local filesystem, call `pdf_to_markdown` with `path=<absolute path>`.
+> 2. If the path starts with `/mnt/user-data/uploads/` (cloud upload), read the file's raw bytes, base64-encode them, and call `pdf_to_markdown` with `pdf_base64=<encoded bytes>` and `filename=<original filename>`.
+> 3. Use the returned Markdown as the document content.
+> 4. If you also called with `save_output=True`, pass the returned path to `present_files` so the user can download it.
+> Only fall back to native PDF handling if the tool returns an `Error:` response or is unavailable.
 
 This must be paired with the MCP server registered in `claude_desktop_config.json` (see README). Restart Claude Desktop after adding the server config.
 

@@ -47,10 +47,9 @@ def test_save_output(tmp_path):
     dest = tmp_path / "simple.pdf"
     shutil.copy(src, dest)
     result = pdf_to_markdown(str(dest), save_output=True)
-    assert result.startswith("Saved to:")
-    md_file = dest.with_suffix(".md")
-    assert md_file.exists()
-    assert md_file.stat().st_size > 0
+    assert Path(result) == dest.with_suffix(".md")
+    assert Path(result).exists()
+    assert Path(result).stat().st_size > 0
 
 
 def test_base64_mode():
@@ -66,22 +65,42 @@ def test_base64_save_output(tmp_path):
     pdf_bytes = (FIXTURES / "simple.pdf").read_bytes()
     b64 = base64.b64encode(pdf_bytes).decode()
     result = pdf_to_markdown(pdf_base64=b64, save_output=True, output_dir=str(tmp_path))
-    assert result.startswith("Saved to:")
-    md_files = list(tmp_path.glob("*.md"))
-    assert len(md_files) == 1
-    assert md_files[0].stat().st_size > 0
+    assert Path(result).exists()
+    assert Path(result).suffix == ".md"
+    assert Path(result).stat().st_size > 0
 
 
 def test_output_dir(tmp_path):
     result = pdf_to_markdown(
         str(FIXTURES / "simple.pdf"), save_output=True, output_dir=str(tmp_path)
     )
-    assert result.startswith("Saved to:")
-    md_file = tmp_path / "simple.md"
-    assert md_file.exists()
-    assert md_file.stat().st_size > 0
+    assert Path(result) == tmp_path / "simple.md"
+    assert Path(result).exists()
+    assert Path(result).stat().st_size > 0
 
 
 def test_neither_arg_returns_error():
     result = pdf_to_markdown()
+    assert result.startswith("Error:")
+
+
+def test_base64_filename_hint(tmp_path):
+    pdf_bytes = (FIXTURES / "simple.pdf").read_bytes()
+    b64 = base64.b64encode(pdf_bytes).decode()
+    result = pdf_to_markdown(
+        pdf_base64=b64,
+        save_output=True,
+        output_dir=str(tmp_path),
+        filename="quarterly_report.pdf",
+    )
+    assert Path(result).name == "quarterly_report.md"
+    assert Path(result).stat().st_size > 0
+
+
+def test_unwritable_output_dir_returns_error():
+    result = pdf_to_markdown(
+        str(FIXTURES / "simple.pdf"),
+        save_output=True,
+        output_dir="/proc/pdf_porter_test",
+    )
     assert result.startswith("Error:")

@@ -38,10 +38,15 @@ uv run pytest
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `path` | `str` | required | Absolute or relative path to a PDF file |
-| `save_output` | `bool` | `False` | If `True`, writes a `.md` file next to the PDF and returns the output path |
+| `path` | `str` | — | Path to a PDF on the **server’s** filesystem |
+| `pdf_base64` | `str` | — | Base64-encoded PDF bytes (use for uploads; see below) |
+| `save_output` | `bool` | `False` | If `True`, writes a `.md` file and returns the output path |
+| `output_dir` | `str` | — | Directory for the `.md` file when `save_output=True` (e.g. `/mnt/user-data/outputs/`) |
+| `filename` | `str` | — | Original filename hint for base64 mode (e.g. `"report.pdf"` → output is `"report.md"`) |
 
-**Returns:** Markdown string, or `"Saved to: <path>"` when `save_output=True`, or `"Error: <message>"` on failure.
+You must pass either `path` or `pdf_base64` (not both). Paths under `/mnt/user-data/uploads/` (e.g. Claude Desktop uploads) are not visible to the server; for those, pass the file content as `pdf_base64` instead.
+
+**Returns:** Markdown string, or a bare output file path when `save_output=True`, or `"Error: <message>"` on failure.
 
 ## Known Limitations
 
