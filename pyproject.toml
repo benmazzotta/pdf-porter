@@ -6,7 +6,7 @@ readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "Ben Mazzotta" }]
 requires-python = ">=3.11"
-dependencies = ["mcp[cli]", "docling"]
+dependencies = ["mcp[cli]", "docling==2.75.0"]
 
 [dependency-groups]
 dev = ["pytest", "reportlab"]

@@ -103,9 +103,12 @@ def pdf_to_markdown(
             tmp_path.unlink(missing_ok=True)
 
 
+# Pre-load Docling at import time so the first tool call is fast whether the server
+# is started via main() (e.g. pdf-porter CLI) or by an MCP runner that only imports mcp.
+_get_converter()
+
+
 def main() -> None:
-    # Pre-load Docling models at startup so the first tool call isn't slow.
-    _get_converter()
     mcp.run()
 
 

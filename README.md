@@ -6,7 +6,21 @@ Layout-aware PDF to Markdown for Claude — one tool, zero config, five minutes 
 
 ## Installation
 
-### Use with Claude Desktop (recommended)
+### Claude Desktop venv (recommended)
+
+Install pdf-porter into a dedicated venv so Docling and its weights live in one place (no uv global cache, no project path in config):
+
+```bash
+cd pdf-porter
+./scripts/setup_claude_desktop_venv.sh
+```
+
+- **macOS:** venv is `~/Library/Application Support/Claude/venv`.
+- **Linux / VM:** venv defaults to `/mnt/claude_venv` so Docling stays on the VM under `/mnt`. Override with `CLAUDE_VENV` if needed.
+
+The script prints the exact config snippet. Add it and restart Claude Desktop. First tool call will download Docling weights (~500MB); subsequent calls are fast.
+
+### Use with uvx (simple, uses uv cache)
 
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
@@ -21,7 +35,30 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-Then restart Claude Desktop. The first time Claude calls the tool, Docling will download its model weights (~500MB). Subsequent calls are fast.
+Then restart Claude Desktop.
+
+### Project-managed install (development / testing)
+
+To keep Docling and its weights in this repo only (no uv global cache):
+
+```bash
+cd pdf-porter
+uv sync
+```
+
+Then point Claude Desktop at the repo’s script so the server uses this venv:
+
+```json
+{
+  "mcpServers": {
+    "pdf-tools": {
+      "command": "/ABSOLUTE/PATH/TO/pdf-porter/scripts/run_server.sh"
+    }
+  }
+}
+```
+
+Replace `/ABSOLUTE/PATH/TO/pdf-porter` with the real path (e.g. `"/Users/you/GitHub/pdf-porter"`). Docling and weights live in the project’s `.venv`; you avoid cache bloat and unsatisfiable resolves from other envs.
 
 ### Development
 

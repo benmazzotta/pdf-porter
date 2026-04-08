@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Stack
 - Python 3.11+
 - `mcp[cli]` (FastMCP)
-- `docling`
+- `docling==2.75.0` (pinned so resolution is deterministic; install is project-managed)
 - `uv` for packaging and running
 - `reportlab` (dev only, for generating test fixtures)
 
@@ -55,7 +55,7 @@ uvx pdf-porter &   # should start cleanly; kill with Ctrl-C
 
 ## Architecture
 
-`server.py` holds a module-level `DocumentConverter` singleton (instantiated once, not per-call) and a boolean flag to log "Loading Docling models..." to stderr on the first conversion only. The `pdf_to_markdown` tool validates path existence and `.pdf` extension before calling Docling, and wraps all exceptions as `"Error: {e}"` strings — never raw tracebacks.
+`server.py` holds a module-level `DocumentConverter` singleton (instantiated once at import time so the first tool call is fast) and a boolean flag to log "Loading Docling models..." to stderr. The `pdf_to_markdown` tool validates path existence and `.pdf` extension before calling Docling, and wraps all exceptions as `"Error: {e}"` strings — never raw tracebacks.
 
 Entry point: `pdf_porter.server:main` → calls `mcp.run()`. Also handles `if __name__ == "__main__"`.
 
@@ -99,6 +99,12 @@ This must be paired with the MCP server registered in `claude_desktop_config.jso
 
 ### Why this is preferred over native PDF ingestion
 Native Claude Desktop PDF handling processes each page as a vision input (~800–1,600 image tokens/page). A 10-page PDF costs ~10,000–16,000 tokens before Claude reads a word. pdf-porter converts locally (zero API cost via Docling) and returns plain markdown — typically 3,000–8,000 text input tokens for the same document. Text tokens are cheaper than image tokens, and Docling preserves tables and multi-column layout that native ingestion scrambles, reducing follow-up turns.
+
+## Claude Desktop venv (recommended for end users)
+`scripts/setup_claude_desktop_venv.sh` creates a venv, installs pdf-porter into it, and prints the config snippet. macOS: venv at `~/Library/Application Support/Claude/venv`. Linux/VM: defaults to `/mnt/claude_venv` so Docling and weights stay on the VM under `/mnt`. Override with `CLAUDE_VENV`. Prefer this over uvx for a single, managed install.
+
+## Project-managed Docling install (testing / dev)
+To avoid uv global cache bloat and unsatisfiable resolves: use the repo as the single install. Run `uv sync` in the repo, then point Claude Desktop at `scripts/run_server.sh` (full path) as the MCP command. Docling and weights live in the project's `.venv` only. See README "Project-managed install" section.
 
 ## Known limitations (inform users)
 - First run downloads Docling model weights (~500MB); subsequent runs are fast.
