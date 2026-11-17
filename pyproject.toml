@@ -1,12 +1,12 @@
 [project]
 name = "pdf-porter"
-version = "0.2.1"
+version = "0.3.0"
 description = "MCP server for layout-aware PDF to Markdown conversion via Docling"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "Ben Mazzotta" }]
 requires-python = ">=3.11"
-dependencies = ["mcp[cli]", "docling==2.75.0"]
+dependencies = ["mcp[cli]>=2.3,<3", "docling==2.75.0"]
 
 [dependency-groups]
 dev = ["pytest", "reportlab"]

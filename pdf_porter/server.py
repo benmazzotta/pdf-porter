@@ -3,10 +3,12 @@ import sys
 import tempfile
 from pathlib import Path
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 from docling.document_converter import DocumentConverter
 
-mcp = FastMCP("pdf-porter")
+from pdf_porter import __version__
+
+mcp = MCPServer("pdf-porter", version=__version__)
 
 # Module-level singleton — avoids reloading model weights on every call.
 _converter: DocumentConverter | None = None
