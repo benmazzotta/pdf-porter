@@ -5,7 +5,7 @@ description = "MCP server for layout-aware PDF to Markdown conversion via Doclin
 readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "Ben Mazzotta" }]
-requires-python = ">=3.11"
+requires-python = ">=3.11.5"
 dependencies = ["mcp[cli]>=2.3,<3", "docling>=2.150,<3"]
 
 [dependency-groups]
