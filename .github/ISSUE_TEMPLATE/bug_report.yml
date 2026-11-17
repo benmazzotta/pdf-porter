@@ -1,0 +1,49 @@
+name: Bug report
+description: pdf-porter fails or produces wrong Markdown
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please fill in every field; reports without enough detail to reproduce may be closed.
+        Security problems: use "Report a security vulnerability" instead.
+  - type: input
+    id: version
+    attributes:
+      label: pdf-porter version
+      description: "Run: pip show pdf-porter (or check your uvx/venv install)"
+      placeholder: "0.3.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: client
+    attributes:
+      label: How do you run it?
+      options:
+        - Claude Desktop (venv script)
+        - Claude Desktop (uvx)
+        - Other MCP client
+        - Direct Python import
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "macOS 15, Ubuntu 24.04, Windows 11..."
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened, and what did you expect?
+      description: Include the exact "Error:" message if there was one.
+    validations:
+      required: true
+  - type: textarea
+    id: pdf
+    attributes:
+      label: The PDF
+      description: Attach a PDF that shows the problem, or describe it (pages, tables, columns, scanned or not). Do not attach anything confidential.
+    validations:
+      required: true
