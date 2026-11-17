@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/benmazzotta/pdf-porter/security/advisories/new
+    about: Please report security problems privately, not as a public issue.
+  - name: Need the full Docling toolset?
+    url: https://pypi.org/project/docling-mcp/
+    about: pdf-porter is intentionally minimal. docling-mcp (by IBM Research) has many more tools.
