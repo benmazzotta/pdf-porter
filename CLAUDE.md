@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Note:** `docling-mcp` (the obvious name) is taken by IBM Research Zurich, the Docling authors themselves, at v1.3.2. This package is intentionally minimal — one tool, no config. The README should reference IBM's `docling-mcp` as the full-featured alternative: "if you want the full Docling toolset, see docling-mcp."
 
 ## Stack
-- Python 3.11+
+- Python 3.11.5+ (soupsieve 4.x, which carries its security fixes, needs 3.11.5)
 - `mcp[cli]>=2.3,<3` (`MCPServer`, formerly FastMCP in mcp 1.x)
 - `docling>=2.150,<3` (floor = newest version the full test suite passed on; `uv.lock` makes dev installs deterministic; the upstream-watch canary warns before a new release breaks us)
 - `uv` for packaging and running
@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Structure
 ```
 pdf_porter/
-  __init__.py       # __version__ = "0.3.0"
+  __init__.py       # __version__ = "0.3.1"
   server.py         # MCPServer app, tool definitions, module-level converter singleton
 tests/
   test_server.py    # integration tests (no mocking)
