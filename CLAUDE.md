@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Structure
 ```
 pdf_porter/
-  __init__.py       # __version__ = "0.3.0"
+  __init__.py       # __version__ = "0.3.1"
   server.py         # MCPServer app, tool definitions, module-level converter singleton
 tests/
   test_server.py    # integration tests (no mocking)
