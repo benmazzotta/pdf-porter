@@ -1,0 +1,211 @@
+# Upstream watch: warns when a new release of mcp or docling breaks pdf-porter.
+#
+# How it works, in plain words:
+#   1. "check" (every day, ~15 seconds) asks PyPI for the newest mcp and docling
+#      versions and compares them with what it saw last time.
+#   2. If nothing changed on the daily run, it stops. No tests, almost no minutes.
+#   3. If something changed (or on a push to main / a manual run), "test" runs:
+#        - pinned: installs pdf-porter as users get it today and runs all tests.
+#        - canary: installs the newest mcp and docling, even past our version caps,
+#          and runs the stdio test. A failure here is only a warning about the future.
+#   4. Any failure opens a GitHub issue labelled "upstream-break" (or comments on
+#      the open one).
+
+name: upstream-watch
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 11 * * *"
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: upstream-watch
+  cancel-in-progress: false
+
+env:
+  VERSIONS_FILE: .github/upstream-versions.json
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      changed: ${{ steps.compare.outputs.changed }}
+      changed_label: ${{ steps.compare.outputs.changed_label }}
+      mcp: ${{ steps.compare.outputs.mcp }}
+      docling: ${{ steps.compare.outputs.docling }}
+      versions_json: ${{ steps.compare.outputs.versions_json }}
+    steps:
+      - name: Restore last-seen versions
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.VERSIONS_FILE }}
+          key: upstream-versions-${{ github.run_id }}
+          restore-keys: upstream-versions-
+
+      - name: Compare with latest on PyPI
+        id: compare
+        shell: python
+        run: |
+          import json, os, urllib.request
+          from pathlib import Path
+
+          latest = {}
+          for name in ("mcp", "docling"):
+              with urllib.request.urlopen(f"https://pypi.org/pypi/{name}/json", timeout=30) as r:
+                  latest[name] = json.load(r)["info"]["version"]
+
+          path = Path(os.environ["VERSIONS_FILE"])
+          previous = json.loads(path.read_text()) if path.exists() else {}
+          changed = [f"{n} {v}" for n, v in latest.items() if previous.get(n) != v]
+
+          print(f"previous: {previous or '(none cached yet)'}")
+          print(f"latest:   {latest}")
+          print(f"changed:  {changed or 'nothing'}")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"changed={'true' if changed else 'false'}\n")
+              out.write(f"changed_label={', '.join(changed)}\n")
+              out.write(f"mcp={latest['mcp']}\n")
+              out.write(f"docling={latest['docling']}\n")
+              out.write(f"versions_json={json.dumps(latest)}\n")
+
+  test:
+    needs: check
+    if: needs.check.outputs.changed == 'true' || github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      LATEST_MCP: ${{ needs.check.outputs.mcp }}
+      LATEST_DOCLING: ${{ needs.check.outputs.docling }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up uv and Python 3.12
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Cache Docling models
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/huggingface
+            ~/.cache/docling
+          key: docling-models-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: docling-models-${{ runner.os }}-
+
+      # Pinned: what a user gets today. Re-resolves within the pyproject caps
+      # (mcp[cli]>=2.3,<3 and docling==2.75.0), so a new mcp 2.x is picked up.
+      - name: Install and test (pinned)
+        id: pinned
+        run: |
+          uv sync --upgrade 2>&1 | tee pinned.log
+          uv run python -c "import importlib.metadata as m, platform; print('mcp', m.version('mcp'), '| docling', m.version('docling'), '| python', platform.python_version())" | tee pinned-versions.txt
+          uv run pytest -v 2>&1 | tee -a pinned.log
+
+      # Canary: newest mcp and docling, ignoring our caps. Warning only.
+      - name: Install canary (latest mcp and docling, caps ignored)
+        id: canary_install
+        continue-on-error: true
+        run: |
+          printf 'mcp[cli]==%s\ndocling==%s\n' "$LATEST_MCP" "$LATEST_DOCLING" > "$RUNNER_TEMP/overrides.txt"
+          uv venv "$RUNNER_TEMP/canary" --python 3.12
+          uv pip install --python "$RUNNER_TEMP/canary/bin/python" \
+            --overrides "$RUNNER_TEMP/overrides.txt" . pytest 2>&1 | tee canary.log
+
+      - name: Test (canary, stdio only)
+        id: canary
+        if: steps.canary_install.outcome == 'success'
+        continue-on-error: true
+        run: |
+          "$RUNNER_TEMP/canary/bin/python" -c "import importlib.metadata as m, platform; print('mcp', m.version('mcp'), '| docling', m.version('docling'), '| python', platform.python_version())" | tee canary-versions.txt
+          "$RUNNER_TEMP/canary/bin/python" -m pytest -v tests/test_mcp_stdio.py 2>&1 | tee -a canary.log
+
+      - name: Flag canary failure as a warning
+        if: steps.canary_install.outcome == 'failure' || steps.canary.outcome == 'failure'
+        run: echo "::warning title=Canary failed::Latest mcp ${LATEST_MCP} / docling ${LATEST_DOCLING} breaks pdf-porter's stdio test. Pinned install is fine. See the upstream-break issue."
+
+      - name: Remember these versions
+        if: success()
+        run: echo '${{ needs.check.outputs.versions_json }}' > "$VERSIONS_FILE"
+
+      - name: Save versions to cache
+        if: success()
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.VERSIONS_FILE }}
+          key: upstream-versions-${{ github.run_id }}
+
+      - name: Open or update upstream-break issue
+        if: >-
+          always() && (
+            steps.pinned.outcome == 'failure' ||
+            steps.canary_install.outcome == 'failure' ||
+            steps.canary.outcome == 'failure'
+          )
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          CHANGED: ${{ needs.check.outputs.changed_label }}
+          PINNED: ${{ steps.pinned.outcome }}
+          CANARY_INSTALL: ${{ steps.canary_install.outcome }}
+          CANARY: ${{ steps.canary.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -u
+          body="$RUNNER_TEMP/issue.md"
+          {
+            echo "Run: $RUN_URL"
+            echo "Trigger: ${{ github.event_name }}"
+            echo "New upstream versions this run: ${CHANGED:-none}"
+            echo
+          } > "$body"
+
+          versions_line=""
+          add_section() {  # title, versions file, log file
+            echo "### Failing step: $1" >> "$body"
+            if [ -s "$2" ]; then
+              versions_line="$(cat "$2")"
+              echo "Installed: \`$versions_line\`" >> "$body"
+            else
+              echo "Installed: (install did not finish; target mcp $LATEST_MCP, docling $LATEST_DOCLING, python 3.12)" >> "$body"
+            fi
+            echo >> "$body"
+            echo "Last 50 lines of output:" >> "$body"
+            echo '```' >> "$body"
+            tail -n 50 "$3" 2>/dev/null >> "$body" || echo "(no output captured)" >> "$body"
+            echo '```' >> "$body"
+            echo >> "$body"
+          }
+
+          [ "$PINNED" = "failure" ] && add_section "Install and test (pinned)" pinned-versions.txt pinned.log
+          [ "$CANARY_INSTALL" = "failure" ] && add_section "Install canary" /dev/null canary.log
+          [ "$CANARY" = "failure" ] && add_section "Test (canary, stdio only)" canary-versions.txt canary.log
+
+          # Title names the package(s) that changed; on push/manual runs with no
+          # change, it names the versions that were installed.
+          what="${CHANGED:-}"
+          if [ -z "$what" ]; then
+            what="$(echo "$versions_line" | sed -E 's/ \| python.*//; s/ \| /, /')"
+          fi
+          title="Upstream break: ${what:-mcp $LATEST_MCP, docling $LATEST_DOCLING}"
+
+          gh label create upstream-break --repo "$REPO" --color d73a4a \
+            --description "A new mcp or docling release breaks pdf-porter" 2>/dev/null || true
+
+          existing="$(gh issue list --repo "$REPO" --label upstream-break --state open \
+            --json number --jq '.[0].number // empty')"
+          if [ -n "$existing" ]; then
+            { echo "**$title**"; echo; cat "$body"; } > "$body.comment"
+            gh issue comment "$existing" --repo "$REPO" --body-file "$body.comment"
+          else
+            gh issue create --repo "$REPO" --title "$title" --label upstream-break --body-file "$body"
+          fi
