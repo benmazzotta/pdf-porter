@@ -103,7 +103,7 @@ jobs:
           restore-keys: docling-models-${{ runner.os }}-
 
       # Pinned: what a user gets today. Re-resolves within the pyproject caps
-      # (mcp[cli]>=2.3,<3 and docling==2.75.0), so a new mcp 2.x is picked up.
+      # (mcp[cli]>=2.3,<3 and docling>=2.150,<3), so new mcp 2.x and docling 2.x releases are picked up.
       - name: Install and test (pinned)
         id: pinned
         run: |

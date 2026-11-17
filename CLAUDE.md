@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Stack
 - Python 3.11+
 - `mcp[cli]>=2.3,<3` (`MCPServer`, formerly FastMCP in mcp 1.x)
-- `docling==2.75.0` (pinned so resolution is deterministic; install is project-managed)
+- `docling>=2.150,<3` (floor = newest version the full test suite passed on; `uv.lock` makes dev installs deterministic; the upstream-watch canary warns before a new release breaks us)
 - `uv` for packaging and running
 - `reportlab` (dev only, for generating test fixtures)
 
